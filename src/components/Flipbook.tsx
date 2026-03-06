@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 import { ChevronLeft, ChevronRight, Leaf, ShieldCheck, Activity, BarChart3, Download, FileDown } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 const pagesData = [
   {
@@ -10,7 +10,7 @@ const pagesData = [
     content: (
       <div className="h-full flex flex-col justify-center items-center text-center space-y-8">
         <div className="w-48 h-24 flex items-center justify-center mb-8">
-          <img src="https://i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-full h-full object-contain" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+          <img src="https://images.weserv.nl/?url=i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-full h-full object-contain" referrerPolicy="no-referrer" crossOrigin="anonymous" />
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
           数诚安信能碳专家
@@ -31,7 +31,7 @@ const pagesData = [
     isCover: false,
     content: (
       <div className="h-full flex flex-col justify-center items-center text-center opacity-20">
-        <img src="https://i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-48 object-contain grayscale" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+        <img src="https://images.weserv.nl/?url=i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-48 object-contain grayscale" referrerPolicy="no-referrer" crossOrigin="anonymous" />
       </div>
     ),
   },
@@ -120,7 +120,7 @@ const pagesData = [
         
         <div className="mb-6">
           <div className="h-56 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-200 shadow-inner overflow-hidden relative p-2">
-            <img src="https://i.postimg.cc/xCXXyCfx/zmt.png" alt="能碳一体机设备" className="object-contain w-full h-full opacity-95 mix-blend-multiply" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+            <img src="https://images.weserv.nl/?url=i.postimg.cc/xCXXyCfx/zmt.png" alt="能碳一体机设备" className="object-contain w-full h-full opacity-95 mix-blend-multiply" referrerPolicy="no-referrer" crossOrigin="anonymous" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent flex items-end p-3">
               <span className="text-white font-medium text-sm">能碳一体机实物示意图</span>
             </div>
@@ -330,7 +330,7 @@ const pagesData = [
     content: (
       <div className="h-full flex flex-col justify-between items-center text-center py-12">
         <div className="w-full flex-grow flex flex-col items-center justify-center">
-          <img src="https://i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-32 object-contain mb-6 opacity-80" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+          <img src="https://images.weserv.nl/?url=i.postimg.cc/MZ7hW88f/logo2.png" alt="数诚安信" className="w-32 object-contain mb-6 opacity-80" referrerPolicy="no-referrer" crossOrigin="anonymous" />
           <h2 className="text-xl md:text-2xl font-bold mb-3 whitespace-nowrap">数诚安信（山西）能源科技有限公司</h2>
           <p className="text-emerald-100 font-light tracking-wider uppercase text-[10px] md:text-xs mb-12 whitespace-nowrap">
             Shucheng Anxin (Shanxi) Energy Technology Co., Ltd.
@@ -393,22 +393,52 @@ export default function Flipbook() {
     setIsExporting(true);
     try {
       const canvases = [];
+      const exportContainer = document.getElementById('export-container');
+      if (!exportContainer) throw new Error("找不到导出容器");
+
+      // Ensure all images in the export container are loaded
+      const images = exportContainer.getElementsByTagName('img');
+      const imagePromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => {
+            console.warn(`Failed to load image: ${img.src}`);
+            resolve(null); // Continue anyway
+          };
+        });
+      });
+      await Promise.all(imagePromises);
+
+      // Small delay to ensure rendering is stable
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       for (let i = 0; i < pagesData.length; i++) {
         const element = document.getElementById(`export-page-${i}`);
         if (element) {
           const canvas = await html2canvas(element, {
-            scale: 2, // Higher resolution
+            scale: 2,
             useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff'
+            allowTaint: false, // Must be false to use toDataURL later
+            backgroundColor: '#ffffff',
+            logging: false,
+            imageTimeout: 15000,
+            onclone: (clonedDoc) => {
+              // Ensure cloned elements are visible for capture
+              const el = clonedDoc.getElementById(`export-page-${i}`);
+              if (el) {
+                el.style.position = 'relative';
+                el.style.left = '0';
+              }
+            }
           });
           canvases.push(canvas);
         }
       }
       return canvases;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating images:", error);
-      alert("生成图片时发生错误，请重试。");
+      alert(`生成文件时发生错误: ${error.message || "未知错误"}\n\n这通常是由于图片跨域限制导致的。如果问题持续，请尝试在本地运行或更换图片链接。`);
       return [];
     } finally {
       setIsExporting(false);
